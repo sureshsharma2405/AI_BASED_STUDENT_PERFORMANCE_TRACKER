@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Student Performance Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI';
+            margin: 0;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        h2 {
+            text-align: center;
+            color: white;
+            padding: 20px;
+        }
+
+        .main {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            padding: 20px;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            width: 350px;
+        }
+
+        input {
+            padding: 10px;
+            margin: 8px 0;
+            width: 95%;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #eef2ff;
+            border-radius: 10px;
+        }
+
+        .good { background: green; color: white; padding:5px; border-radius:5px;}
+        .avg { background: orange; color: white; padding:5px; border-radius:5px;}
+        .risk { background: red; color: white; padding:5px; border-radius:5px;}
+
+        canvas {
+            max-width: 260px;
+            margin: 10px auto;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>AI Student Performance Tracker</h2>
+
+<div class="main">
+
+    <!-- FORM -->
+    <div class="card">
+        <h3>Student Details</h3>
+
+        <form id="form">
+            <input type="number" id="attendance" placeholder="Attendance"><br>
+            <input type="number" id="sessional" placeholder="Sessional Marks"><br>
+            <input type="number" id="midterm" placeholder="Midterm Marks"><br>
+            <input type="number" id="assignments" placeholder="Assignments"><br>
+            <input type="number" id="study" placeholder="Study Hours"><br><br>
+
+            <button type="submit">Predict</button>
+        </form>
+
+        <div id="result" class="result"></div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="card">
+        <h3>Score Chart</h3>
+        <canvas id="scoreChart"></canvas>
+
+        <h3>Parameter Chart</h3>
+        <canvas id="paramChart"></canvas>
+    </div>
+
+</div>
+
+<script>
+let scoreChart = null;
+let paramChart = null;
+
+document.getElementById("form").addEventListener("submit", function(e){
+    e.preventDefault();
+
+    let attendance = Number(document.getElementById("attendance").value);
+    let sessional = Number(document.getElementById("sessional").value);
+    let midterm = Number(document.getElementById("midterm").value);
+    let assignments = Number(document.getElementById("assignments").value);
+    let study = Number(document.getElementById("study").value);
+
+    fetch("/predict", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            attendance,
+            sessional_marks: sessional,
+            midterm_marks: midterm,
+            assignments,
+            study_hours: study
+        })
+    })
+    .then(res => res.json())
+    .then(res => {
+
+        let cls = "avg";
+        if (res.performance_level === "Good") cls = "good";
+        if (res.performance_level === "At Risk") cls = "risk";
+
+        document.getElementById("result").innerHTML =
+            "<b>Score:</b> " + res.performance_score +
+            "<br><b>Level:</b> <span class='" + cls + "'>" + res.performance_level + "</span>" +
+            "<br><b>Suggestions:</b> " + res.suggestions.join(", ");
+
+        // SCORE CHART
+        if (scoreChart) scoreChart.destroy();
+
+        scoreChart = new Chart(document.getElementById("scoreChart"), {
+            type: "bar",
+            data: {
+                labels: ["Score"],
+                datasets: [{
+                    label: "Performance Score",
+                    data: [res.performance_score],
+                    backgroundColor: "#28a745"
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true, max: 100 }
+                }
+            }
+        });
+
+        // PARAMETER CHART (🎨 COLORFUL)
+        if (paramChart) paramChart.destroy();
+
+        paramChart = new Chart(document.getElementById("paramChart"), {
+            type: "bar",
+            data: {
+                labels: ["Attendance", "Sessional", "Midterm", "Assignments", "Study"],
+                datasets: [{
+                    label: "Student Parameters",
+                    data: [attendance, sessional, midterm, assignments, study * 20],
+                    backgroundColor: [
+                        "#ff4d4d",  // red
+                        "#4da6ff",  // blue
+                        "#ffd11a",  // yellow
+                        "#ff944d",  // orange
+                        "#b366ff"   // purple
+                    ],
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true, max: 100 }
+                }
+            }
+        });
+
+    })
+    .catch(err => {
+        alert("Error: " + err);
+    });
+});
+</script>
+
+</body>
+</html>
